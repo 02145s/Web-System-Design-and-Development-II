@@ -11,8 +11,8 @@ app.use(express.static('public'));
 
 // 웹 서버를 실행합니다.
 var server = http.createServer(app);
-server.listen(5000, function () {
-    console.log('server running at http://127.0.0.1:5000');
+server.listen(5, function () {
+    console.log('server running at http://127.0.0.1:5');
 });
 app.set('port', process.env.PORT || 8000);
 
@@ -57,18 +57,21 @@ io.sockets.on('connection', function (socket) {
     //채팅 이름 설정
     var count = 1;
     socketio.on('connection', function(socket){
-        console.log('user connected: ', socket.id);
-        
-        
-    
-    // chat 이벤트
-    socket.on('message', function (message, name) {
-        var name= "사용자"+ count++;
+        console.log('user connected: ', socket.id);   
+        var name = "사용자"+ count++;
         socketio.to(socket.id).emit('change name',name);
-        var msg = name + ': ' +message;
+        socketio.on('disconnect', function(){
+            console.log('끊어진 사용자: ', socket.id)
+        });
+
+    // chat 이벤트
+    socket.on('message', function (name, message) {
+                
+        
+        var msg = name+': '+message;
         console.log(msg);
-        io.sockets.emit('message', message);
-       // io.sockets.emit(msg);
+        socketio.emit('send_msg', msg);
+      
     });
     
 });
