@@ -59,7 +59,7 @@ io.sockets.on('connection', function (socket) {
     const count = 1;
     socketio.on('connection', function(socket){
         console.log('user connected: ', socket.id);   
-        var name = "사용자";
+        const name = "사용자";
         socketio.to(socket.id).emit('change name',name);
         socketio.on('disconnect', function(){
             console.log('끊어진 사용자: ', socket.id)
