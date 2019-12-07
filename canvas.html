@@ -92,7 +92,7 @@
             });
             socket.on('receive message', function(msg){
                 $('#txtappend').append(msg);
-                $('#message').val('');
+               // $('#message').val('');
             })
             socket.on('name', function(name){
                 $('#name').val(name);
@@ -108,9 +108,11 @@
                 $('#msg1').scrollTop($('#msg1')[0].scrollHeight);
                 
             });*/
-            
+          
         });
+       
     </script>
+
     <style media="screen">
       input {
         width: 95%;
@@ -148,10 +150,10 @@
                     </div>
                     <form id ="chat"  >
                        <p align="center">
-                       <br><textarea id="msg1" class="msg1" style="height: 300px; width: 500px;"></textarea></br>
+                       <br><textarea id="msg1" class="msg1" style="height: 300px; width: 500px;" readonly></textarea></br>
                        <p></p>
                         ID:
-                        <input type="text" style="width:90px;" id="name" class="name" />
+                        <input type="text" style="width:90px;" id="name" class="name" value=" " />
                         보낼메시지:
                         <input type="text" style="width:270px;" id="message" class="message" />
                         <input type="button" value="메시지 전송" id="btn" style="height: auto; width: auto;" class="btn"/></p>
