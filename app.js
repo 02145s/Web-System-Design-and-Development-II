@@ -6,27 +6,26 @@ const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 const bodyParser = require('body-parser'); //post로 받은 데이터 해석 모듈
 const ejs = require('ejs'); //ejs페이지 모듈
-const crypto = require('crypto'); //비밀번호 암호화 모듈
+const bcrypt = require('bcrypt'); //비밀번호 암호화 모듈
 const dbConfig = require('./db'); //db연결을 위한 커넥션
 
 
 //추가구문
 const ht = require('http').createServer();
 const socketio = require('socket.io')(ht);
-//const express = require('express');
 const http = require('http');
-//const ejs = require('ejs');
 const fs = require('fs');
 
 const app = express();
 
 app.use(express.static('public')); //추가
 
-//-----db연결---------//
+//-------db연결---------//
 const dbOptions = dbConfig;
 const conn = mysql.createConnection(dbOptions);
 conn.connect();
 
+//----------로그인API---------//
 app.set('view engine', 'ejs');
 app.set('views', './view');
 app.use(bodyParser.urlencoded({ extended: false })); //로그인 인코딩
@@ -42,35 +41,31 @@ app.use(passport.session());
 passport.use(new LocalStrategy(
   function (id, pw, done) {
     let sql = 'SELECT * FROM users WHERE id=?';
-    let sql2 = 'SELECT id FROM users WHERE pw=?';
-    conn.query(sql, [id], function (err, results) {
+    
+    conn.query(sql, [id], function (err, results) { //db에서 id를 찾아 일치하는지 검색
       if (err)
         return done(err);
 
       if (!results[0])
         return done('please check your id.');
 
-
+      
       let user = results[0];
-      conn.query(sql2, [pw], function (err, results) {
+     
+      const r1 = bcrypt.compareSync(pw, user.pw);  //비밀번호 hash값 복호화
+      console.log('해시값 비교:'+r1); 
 
-        if (!results[0])
+      let sql2 = 'SELECT id FROM users WHERE pw=?';
+      conn.query(sql2, [user.pw], function (err, results) {
+
+        if ( r1 == false) //암호화된 비밀번호와 입력한 비밀번호가 다를경우 로그인 실패
           return done('please check your password.');
 
-        else (err)
+        else (err) //암호화된 비밀번호와 입력한 비밀번호가 일치하면 로그인 성공
         console.log('로그인 성공!');
         return done(null, user);
-
-        /* crypto.pbkdf2(password, user.salt, 100000, 64, 'sha512', function(err, derivedKey){
-              if(err)
-                return done(err);
-       
-              if(derivedKey.toString('hex') === user.password)
-                return done(null, user);
-              else
-                return done('please check your password.');*/
-      });//pbkdf2
-    });//query
+      });
+    });
   }
 
 ));
@@ -137,7 +132,7 @@ app.set('port', process.env.PORT || 8000);
 
 
 
-//----------------- 그림 채팅 시작-----------------------//
+//----------------- 그림 채팅 API-----------------------//
 app.get('/lobby.html', function (request, response) {
   if (!request.user)
     response.redirect('/login'); //로그인 안하고 접근시 무조건 로그인 페이지로!!
@@ -226,11 +221,11 @@ app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }))
 
 app.post('/join', (req, res) => {
 
-  let body = req.body;
-  let id = body.id;
-  let password = body.password;
-  let name = body.name;
-  let email = body.email;
+  const body = req.body;
+  const id = body.id;
+  const password = body.password;
+  const name = body.name;
+  const email = body.email;
 
   //res.send('id : ${id}, password : ${password}, name : ${name}, email : ${email}');
   if (!id || !password || !name || !email) {
@@ -241,11 +236,12 @@ app.post('/join', (req, res) => {
 
     return;
   }
-
+  const salt = bcrypt.genSaltSync(10); //계속바뀌는 salt값
+  const hashpw = bcrypt.hashSync(password, salt, null); //비밀번호와 salt값을 붙여서 암호화된 비밀번호를 생성한다.
 
   //var sql = 'INSERT INTO users(id, pw, email, name) VALUES(?, ?, ?, ?)';
 
-  conn.query('INSERT INTO users(id, pw, email, name) VALUES("' + id + '","' + password + '","' + email + '","' + name + '")', function (err, rows) {
+  conn.query('INSERT INTO users(id, pw, email, name) VALUES("' + id + '","' + hashpw + '","' + email + '","' + name + '")', function (err, rows) {
 
     if (err)
       console.log(err);
