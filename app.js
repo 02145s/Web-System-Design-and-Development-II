@@ -8,12 +8,11 @@ const bodyParser = require('body-parser'); //post로 받은 데이터 해석 모
 const ejs = require('ejs'); //ejs페이지 모듈
 const bcrypt = require('bcrypt'); //비밀번호 암호화 모듈
 const dbConfig = require('./db'); //db연결을 위한 커넥션
+const join = require('./join'); //회원가입 모듈
 
-
-//추가구문
 const ht = require('http').createServer();
-const socketio = require('socket.io')(ht);
-const http = require('http');
+const socketio = require('socket.io')(ht);// 소켓io모듈 
+const http = require('http'); //http모듈
 const fs = require('fs');
 
 const app = express();
@@ -41,7 +40,7 @@ app.use(passport.session());
 passport.use(new LocalStrategy(
   function (id, pw, done) {
     let sql = 'SELECT * FROM users WHERE id=?';
-    
+
     conn.query(sql, [id], function (err, results) { //db에서 id를 찾아 일치하는지 검색
       if (err)
         return done(err);
@@ -49,16 +48,15 @@ passport.use(new LocalStrategy(
       if (!results[0])
         return done('please check your id.');
 
-      
       let user = results[0];
-     
+
       const r1 = bcrypt.compareSync(pw, user.pw);  //비밀번호 hash값 복호화
-      console.log('해시값 비교:'+r1); 
+      console.log('해시값 비교:' + r1);
 
       let sql2 = 'SELECT id FROM users WHERE pw=?';
       conn.query(sql2, [user.pw], function (err, results) {
 
-        if ( r1 == false) //암호화된 비밀번호와 입력한 비밀번호가 다를경우 로그인 실패
+        if (r1 == false) //암호화된 비밀번호와 입력한 비밀번호가 다를 경우 로그인 실패
           return done('please check your password.');
 
         else (err) //암호화된 비밀번호와 입력한 비밀번호가 일치하면 로그인 성공
@@ -67,8 +65,8 @@ passport.use(new LocalStrategy(
       });
     });
   }
-
 ));
+
 passport.serializeUser(function (user, done) {
   done(null, user.id);
 });
@@ -98,12 +96,14 @@ app.get('/login', function (req, res) {
   else
     res.redirect('/main');
 });
+
 app.get('/main', function (req, res) {
   if (!req.user)
     return res.redirect('/login');
   else
     res.render('main', { name: req.user.name });
-});
+  });
+
 app.get('/logout', function (req, res) {
   req.logout();
   res.redirect('/');
@@ -123,14 +123,11 @@ app.post('/login',
  console.log('Example app listening on port 3000!');
 });*/
 
-
 const server = http.createServer(app);
 server.listen(5, function () {
   console.log('server running at http://127.0.0.1:5');
 });
 app.set('port', process.env.PORT || 8000);
-
-
 
 //----------------- 그림 채팅 API-----------------------//
 app.get('/lobby.html', function (request, response) {
@@ -142,15 +139,15 @@ app.get('/lobby.html', function (request, response) {
     });
 });
 
-app.get('/canvas/:room', function (request, response) {
-  fs.readFile('./canvas.html', 'utf8', function (error, data) {
+app.get('/canvas/:room', function (request, response) { //채팅방을 생성
+  fs.readFile('./canvas.html', 'utf8', function (error, data) { //채팅방 생성후 페이지 이동
     response.send(ejs.render(data, {
       room: request.params.room
     }));
   });
 });
 
-app.get('/view/canvas/room', function (request, response) {
+app.get('/view/canvas/room', function (request, response) { //생성된 채팅방
   const rooms = Object.keys(io.sockets.adapter.rooms).filter(function (item) {
     return item.indexOf('/') < 0;
   })
@@ -174,7 +171,7 @@ io.sockets.on('connection', function (socket) {
   });
 
   //채팅 이름 설정
-  const count = 1;
+
   socketio.on('connection', function (socket) {
     console.log('user connected: ', socket.id);
     const name = "사용자";
@@ -183,29 +180,20 @@ io.sockets.on('connection', function (socket) {
       console.log('끊어진 사용자: ', socket.id)
     });
 
+  });
     // chat 이벤트
     socket.on('message', function (name, message) {
-
-      const msg = name + ': ' + message;
+      //const name = req.user.name;
+      const msg = name + ': ' + message; //메시지 = 이름+보낼메시지
       console.log(msg);
-      socketio.emit('send_msg', msg);
+      socketio.emit('send_msg', msg); 
 
     });
 
   });
 
-});
-
-
-
 //-------------회원가입API------------//
-conn.connect((err) => {
-  if (!err)
-    console.log('db연결됨!');
-  else
-    console.log('db연결 안됨\n Error : ' + JSON.stringify(err, undefined, 2));
-});
-
+app.use(join); //회원가입 모듈 불러오기
 
 app.get('/join', function (request, response) {
   fs.readFile('./join.html', function (error, data) {
@@ -213,45 +201,3 @@ app.get('/join', function (request, response) {
   });
 });
 
-
-
-app.use(bodyParser.text());
-app.use(bodyParser.text({ limit: '50mb' })); //body 의 크기 설정
-app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }))
-
-app.post('/join', (req, res) => {
-
-  const body = req.body;
-  const id = body.id;
-  const password = body.password;
-  const name = body.name;
-  const email = body.email;
-
-  //res.send('id : ${id}, password : ${password}, name : ${name}, email : ${email}');
-  if (!id || !password || !name || !email) {
-    // res.send('회원가입 정보를 모두 기입하십시오!');
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end('<html><body><h1 style="color: red;">회원가입 정보를 모두 입력 하세요!</h1>' +
-      '<input type="button" value="회원가입 페이지로 이동" onclick="history.back(-1)"></body></html>');
-
-    return;
-  }
-  const salt = bcrypt.genSaltSync(10); //계속바뀌는 salt값
-  const hashpw = bcrypt.hashSync(password, salt, null); //비밀번호와 salt값을 붙여서 암호화된 비밀번호를 생성한다.
-
-  //var sql = 'INSERT INTO users(id, pw, email, name) VALUES(?, ?, ?, ?)';
-
-  conn.query('INSERT INTO users(id, pw, email, name) VALUES("' + id + '","' + hashpw + '","' + email + '","' + name + '")', function (err, rows) {
-
-    if (err)
-      console.log(err);
-    else {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end('<html><body><h1>회원가입 완료!</h1>' +
-        '<a href="./login">로그인하기!</a></body></html>');
-      console.log(rows.insertId);
-    }
-
-
-  });
-});
